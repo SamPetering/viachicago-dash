@@ -6,8 +6,5 @@
     "types": ["google-apps-script"],
     "outDir": "./dist"
   },
-  "include": [
-    "src/**/*.ts"
-  ]
+  "include": ["src/**/*.ts"]
 }
-
