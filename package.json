@@ -1,0 +1,18 @@
+{
+  "name": "viachicago",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "npx tsc",
+    "push": "clasp push",
+    "bp": "pnpm build && pnpm push"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/google-apps-script": "^1.0.91",
+    "typescript": "^4.9.5"
+  }
+}
