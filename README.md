@@ -9,4 +9,4 @@ inside `.clasp.json`, replace `scriptId` with the project's apps script id
 
 authorize clasp with your google account: `clasp login`
 
-build and push `pnpm bp`
+build and push to apps script project `pnpm bp`
