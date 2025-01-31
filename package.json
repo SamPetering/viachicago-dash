@@ -1,20 +1,20 @@
 {
-  "name": "viachicago",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "build": "npx tsc",
-    "push": "clasp push",
-    "bp": "pnpm format && pnpm build && pnpm push",
-    "format": "prettier --write ."
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "@types/google-apps-script": "^1.0.91",
-    "prettier": "^3.4.2",
-    "typescript": "^4.9.5"
-  }
+    "name": "viachicago",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "build": "npx tsc",
+        "push": "clasp push",
+        "bp": "pnpm format && pnpm build && pnpm push",
+        "format": "prettier --write ."
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "@types/google-apps-script": "^1.0.91",
+        "prettier": "^3.4.2",
+        "typescript": "^4.9.5"
+    }
 }
