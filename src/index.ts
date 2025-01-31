@@ -90,62 +90,9 @@ class ProjectDataSheet {
         this.dataCells = args.dataCellMap;
         this.headerCells = args.headersCellMap;
 
-        this.getCellValue = this.getCellValue.bind(this);
-        this.getStringCellValue = this.getStringCellValue.bind(this);
-        this.getNumberCellValue = this.getNumberCellValue.bind(this);
-        this.getInvoicingData = this.getInvoicingData.bind(this);
-        this.getSpendData = this.getSpendData.bind(this);
-        this.getFeeData = this.getFeeData.bind(this);
-        this.getProjectId = this.getProjectId.bind(this);
         this.getProjectData = this.getProjectData.bind(this);
         this.getRangesWithValues = this.getRangesWithValues.bind(this);
     }
-    getCellValue(a1Notation: string) {
-        return this.sheet.getRange(a1Notation).getValue();
-    }
-    getStringCellValue(a1Notation: string): string {
-        return U.toString(this.getCellValue(a1Notation));
-    }
-    getNumberCellValue(a1Notation: string): number {
-        return U.toNumber(this.getCellValue(a1Notation));
-    }
-    private getInvoicingData(): InvoicingData {
-        return {
-            totalBilled: this.getNumberCellValue(this.dataCells.projectId),
-            remainingToBill: this.getNumberCellValue(
-                this.dataCells.remainingToBill
-            ),
-            pctBilled: this.getNumberCellValue(this.dataCells.pctBilled),
-            totalReceived: this.getNumberCellValue(
-                this.dataCells.totalReceived
-            ),
-            remainingToReceive: this.getNumberCellValue(
-                this.dataCells.remainingToReceive
-            ),
-        };
-    }
-    private getSpendData(): SpendData {
-        return {
-            unallocated: this.getNumberCellValue(this.dataCells.unallocated),
-            pctAllocated: this.getNumberCellValue(this.dataCells.pctAllocated),
-            pctAssigned: this.getNumberCellValue(this.dataCells.pctAssigned),
-            feeSpent: this.getNumberCellValue(this.dataCells.feeSpent),
-            pctFeeSpent: this.getNumberCellValue(this.dataCells.pctFeeSpent),
-        };
-    }
-    private getFeeData(): FeeData {
-        return {
-            totalFee: this.getNumberCellValue(this.dataCells.totalFee),
-            architectural: this.getNumberCellValue(
-                this.dataCells.architectural
-            ),
-            consultants: this.getNumberCellValue(this.dataCells.consultants),
-        };
-    }
-    private getProjectId(): string {
-        return this.getStringCellValue(this.dataCells.projectId);
-    }
-
     private getRangesWithValues(
         ranges: string[]
     ): Record<string, (string | number)[]> {
@@ -355,6 +302,7 @@ const U = {
         const num = Number(value);
         return isNaN(num) ? 0 : num;
     },
+
     isNextColumn(colA: string, colB: string): boolean {
         return U.colToNumber(colB) === U.colToNumber(colA) + 1;
     },
@@ -370,10 +318,7 @@ const U = {
     isValidColumnRange(start: string, end: string) {
         return U.colToNumber(start) <= U.colToNumber(end);
     },
-
-    /**
-     * finds contiguous horizontal ranges
-     */
+    // finds contiguous horizontal ranges
     findContiguousRanges(cellMap: Record<string, string>): string[] {
         const cellRefs = Object.values(cellMap);
         const sortedRefs = cellRefs.sort((a, b) => {
@@ -409,6 +354,7 @@ const U = {
 
         return ranges;
     },
+
     getIndexFromRanges(ranges: string[], cell: string) {
         const expandedRanges = [];
         for (const range of ranges) {
@@ -444,6 +390,7 @@ const U = {
         }
         return expandedRanges.indexOf(cell);
     },
+
     getNextColumn(input: string): string {
         // Check if the input is empty
         if (input.length === 0) {
@@ -480,6 +427,7 @@ const DEFAULTS = {
         const numberSubstring = U.extractNumberString(name);
         return numberSubstring != null && !isNaN(Number(numberSubstring));
     },
+
     _extractProjectIdFromSheetName(name: string) {
         // by default, return the first matched number
         const id = U.extractNumberString(name);
