@@ -417,17 +417,14 @@ class DashBuilder {
         this.dashSheet
             .getRange(1, 1, maxRows, maxColumns)
             .setFontFamily('Roboto Mono');
-
+        this.dashSheet.setFrozenColumns(2); // freeze columns
         this.dashSheet.setRowHeight(this.HEADER_ROW, 60); // header height
-
         this.dashSheet // header format
             .getRange(this.HEADER_ROW, 1, 1, lastColumn)
             .setFontWeight('bold')
             .setVerticalAlignment('middle');
-
-        this.dashSheet.setFrozenColumns(2); // freeze columns
-
-        this.dashSheet.autoResizeColumns(1, lastColumn); // column width (should be last)
+        // runs last
+        this.dashSheet.autoResizeColumns(1, lastColumn);
     }
 
     clear() {
