@@ -79,6 +79,27 @@ const HEADER_CELLS = {
     totalReceived: 'V2',
     remainingToReceive: 'W2',
 };
+type Format = 'acct' | 'pct';
+const FORMAT_MAP: Partial<Record<DataKey, Format>> = {
+    totalFee: 'acct',
+    architectural: 'acct',
+    consultants: 'acct',
+    unallocated: 'acct',
+    allocatedPct: 'pct',
+    assignedPct: 'pct',
+    feeSpent: 'acct',
+    feeSpentPct: 'pct',
+    totalBilled: 'acct',
+    remainingToBill: 'acct',
+    billedPct: 'pct',
+    totalReceived: 'acct',
+    remainingToReceive: 'acct',
+};
+
+const NUMBER_FORMAT: Record<Format, string> = {
+    acct: '$#,##0.00;($#,##0.00)',
+    pct: '0.00%',
+};
 
 function onOpen() {
     const ui = SpreadsheetApp.getUi();
@@ -209,6 +230,8 @@ class DashBuilder {
     extractProjectIdFromSheetName: (name: string) => string;
     HEADER_ROW: number;
     dashSheet: GoogleAppsScript.Spreadsheet.Sheet;
+    sheets: GoogleAppsScript.Spreadsheet.Sheet[];
+    sheetCache: Record<string, GoogleAppsScript.Spreadsheet.Sheet | null>;
 
     constructor(args: {
         dashboardSheetName: string;
@@ -239,8 +262,10 @@ class DashBuilder {
             DEFAULTS._extractProjectIdFromSheetName;
         this.HEADER_ROW = args.headerRow ?? 1;
 
-        // load dash
+        // initialiaze sheets
+        this.sheetCache = {};
         this.dashSheet = this.requireDashSheet();
+        this.sheets = this.ss.getSheets();
     }
 
     private requireDashSheet() {
@@ -252,15 +277,18 @@ class DashBuilder {
     }
 
     private getSheetByName(sheetName: string) {
-        return this.ss.getSheetByName(sheetName);
+        const found = this.sheetCache[sheetName];
+        if (found) return found;
+
+        this.sheetCache[sheetName] = this.ss.getSheetByName(sheetName);
+        return this.sheetCache[sheetName];
     }
 
     private getSheetNameData(): Array<{
         sheetNameId: string;
         sheetName: string;
     }> {
-        const sheets = this.ss.getSheets();
-        const allSheetNames = sheets.map((s) => s.getName());
+        const allSheetNames = this.sheets.map((s) => s.getName());
         return allSheetNames
             .filter(this.isSheetNameValidProject)
             .map((name) => ({
@@ -356,17 +384,21 @@ class DashBuilder {
         };
     }
 
+    getProjectHeaderData() {
+        const sheetNameData = this.getSheetNameData();
+        const headerData = this.getProjectHeaders(sheetNameData[0].sheetName);
+        return headerData;
+    }
     getData() {
         const sheetNameData = this.getSheetNameData();
+        const headerData = this.getProjectHeaders(sheetNameData[0].sheetName);
+
         const allSheetNamesProjectData = sheetNameData.map(
             this.getSheetNameProjectDataMap
         );
-        const projectHeaders = this.getProjectHeaders(
-            sheetNameData[0].sheetName
-        );
         return {
             allSheetNamesProjectData,
-            headerData: projectHeaders,
+            headerData,
         };
     }
 
@@ -381,7 +413,6 @@ class DashBuilder {
         const lastColumn = this.dashSheet.getLastColumn();
         if (lastRow > this.HEADER_ROW) {
             const rowsToClear = lastRow - this.HEADER_ROW - 1;
-            console.log({ lastRow, lastColumn, rowsToClear });
             this.dashSheet
                 .getRange(this.HEADER_ROW, 1, rowsToClear, lastColumn)
                 .clearContent();
@@ -410,6 +441,104 @@ class DashBuilder {
         });
     }
 
+    formatDashboardColumns() {
+        const lastRow = this.dashSheet.getLastRow();
+        const lastColumn = this.dashSheet.getLastColumn();
+        // 1. generate map of project header names to format
+        const projectsheetHeaderData = this.getProjectHeaderData();
+        const projectHeaderNameToFormat: Record<string, 'pct' | 'acct'> = {};
+        for (const entry of Object.entries(projectsheetHeaderData)) {
+            const [dataKey, projectSheetHeader] = entry as [DataKey, string];
+            const dataKeyFormat = FORMAT_MAP[dataKey];
+            if (dataKeyFormat == null) continue;
+            projectHeaderNameToFormat[projectSheetHeader] = dataKeyFormat;
+        }
+        // 2. generate map of format to contiguous columns
+        const dashboardHeaders = this.dashSheet
+            .getRange(this.HEADER_ROW, 1, 1, lastColumn)
+            .getValues()[0] as string[];
+        const dashColumnToFormat = {};
+        const formatToContiguousColumnsArr: Partial<
+            Record<Format, string[][]>
+        > = {};
+        // 2a.
+        for (let colIndex = 0; colIndex < dashboardHeaders.length; colIndex++) {
+            const header = dashboardHeaders[colIndex];
+            const format = projectHeaderNameToFormat[header];
+            if (!format) continue;
+
+            // Calculate the cell reference (e.g., A1, B1, C1, etc.)
+            const currentCol = String.fromCharCode(65 + colIndex);
+            const cellRef = `${currentCol}${this.HEADER_ROW}`; // 65 is ASCII for 'A'
+            dashColumnToFormat[header] = {
+                format,
+                cellRef,
+            };
+
+            const formatEntry = formatToContiguousColumnsArr[format];
+            // [[C1,D1,E1], [G1], [I1, J1]]
+            // create map of format to 2d array representing ranges
+            if (!formatEntry || formatEntry.length === 0) {
+                formatToContiguousColumnsArr[format] = [[cellRef]];
+            } else {
+                const prevRange = formatEntry[formatEntry.length - 1];
+                const prevCell = prevRange[prevRange.length - 1]; // get last cell in range
+                if (!prevCell)
+                    throw new Error('Fatal: invalid map configuration');
+
+                const { col: prevCol } = U.cellRefToRowCol(prevCell);
+                if (U.isNextColumn(prevCol, currentCol)) {
+                    // if current is contiguous with prev
+                    prevRange.push(cellRef);
+                } else {
+                    // if not contiguous, start a new range
+                    formatEntry.push([cellRef]);
+                }
+            }
+        }
+        // 2b. collaps 2d array into range format
+        const formatToContiguousColRange = {} as Record<Format, string[]>;
+        for (const entry of Object.entries(formatToContiguousColumnsArr)) {
+            const [fmt, ranges] = entry as [Format, string[][]];
+            const contiguousRanges = ranges.flatMap((range) => {
+                if (range.length === 0) throw new Error('Fatal invalid range');
+                if (range.length === 1) return range[0];
+                return `${range[0]}:${range[range.length - 1]}`;
+            });
+
+            formatToContiguousColRange[fmt] = contiguousRanges;
+        }
+
+        // 3. expand column ranges to last row
+        const formatToContiguousRange = {} as Record<Format, string[]>;
+        for (const entry of Object.entries(formatToContiguousColRange)) {
+            const [fmt, ranges] = entry as [Format, string[]];
+            const expanded = ranges.map((r) => {
+                if (r.includes(':')) {
+                    const [startRef, endRef] = r.split(':');
+                    const end = U.cellRefToRowCol(endRef);
+                    return `${startRef}:${end.col}${lastRow}`;
+                } else {
+                    // single column
+                    const ref = r;
+                    const { col } = U.cellRefToRowCol(ref);
+                    return `${ref}:${col}${lastRow}`;
+                }
+            });
+            formatToContiguousRange[fmt] = expanded;
+        }
+
+        // 4. apply formatting for each array of ranges
+        for (const entry of Object.entries(formatToContiguousRange)) {
+            const [fmt, ranges] = entry as [Format, string[]];
+            ranges.forEach((range) => {
+                const sheetRange = this.dashSheet.getRange(range);
+                const fmtString = NUMBER_FORMAT[fmt];
+                sheetRange.setNumberFormat(fmtString);
+            });
+        }
+    }
+
     format() {
         const lastColumn = this.dashSheet.getLastColumn();
         const maxRows = this.dashSheet.getMaxRows();
@@ -417,12 +546,17 @@ class DashBuilder {
         this.dashSheet
             .getRange(1, 1, maxRows, maxColumns)
             .setFontFamily('Roboto Mono');
+
         this.dashSheet.setFrozenColumns(2); // freeze columns
         this.dashSheet.setRowHeight(this.HEADER_ROW, 60); // header height
         this.dashSheet // header format
             .getRange(this.HEADER_ROW, 1, 1, lastColumn)
             .setFontWeight('bold')
+            .setHorizontalAlignment('center')
             .setVerticalAlignment('middle');
+
+        this.formatDashboardColumns(); // number formatting and such
+
         // runs last
         this.dashSheet.autoResizeColumns(1, lastColumn);
     }
@@ -462,8 +596,8 @@ const U = {
         return isNaN(num) ? 0 : num;
     },
 
-    isNextColumn(colA: string, colB: string): boolean {
-        return U.colToNumber(colB) === U.colToNumber(colA) + 1;
+    isNextColumn(leftCol: string, rightCol: string): boolean {
+        return U.colToNumber(rightCol) === U.colToNumber(leftCol) + 1;
     },
 
     colToNumber(col: string) {
@@ -476,6 +610,10 @@ const U = {
 
     isValidColumnRange(start: string, end: string) {
         return U.colToNumber(start) <= U.colToNumber(end);
+    },
+    cellRefToRowCol(cellRef: string) {
+        const [col, row] = cellRef.match(/([A-Z]+)(\d+)/)!.slice(1);
+        return { col, row };
     },
     /** finds contiguous horizontal ranges */
     findContiguousRanges(cellMap: Record<string, string>): string[] {
