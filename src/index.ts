@@ -15,7 +15,8 @@ function format() {
 
 function build() {
     const db = new DashBuilder(CONFIG);
-    db.build();
+    db.clearAndBuild();
+    db.format();
 }
 //#endregion main
 
@@ -332,7 +333,7 @@ class DashBuilder {
         this.dashSheet.getRange(1, 1, maxRows, maxColumns).clearFormat();
     }
 
-    build() {
+    clearAndBuild() {
         const sheetsToProcess = this.getSheetNamesToProcess();
         const sheetsData = sheetsToProcess.map(this.processSheet);
 
@@ -352,8 +353,6 @@ class DashBuilder {
                 .getRange(START_DATA_ROW + i, 1, 1, row.length)
                 .setValues([row]);
         });
-
-        this.format();
     }
 }
 //#endregion dash builder
