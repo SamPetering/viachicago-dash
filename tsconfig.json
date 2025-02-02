@@ -1,11 +1,12 @@
 {
     "compilerOptions": {
         "target": "es6",
-        "module": "commonjs",
+        "module": "None",
         "lib": ["ES2019"],
         "types": ["google-apps-script"],
         "outDir": "./dist",
-        "strictNullChecks": true
+        "strictNullChecks": true,
+        "strict": true
     },
-    "include": ["src/**/*.ts"]
+    "include": ["src/index.ts"]
 }

@@ -4,7 +4,7 @@
     "description": "",
     "main": "index.js",
     "scripts": {
-        "build": "npx tsc",
+        "build": "rm -rf dist && npx tsc",
         "push": "clasp push",
         "bp": "pnpm format && pnpm build && pnpm push",
         "format": "prettier --write ."
