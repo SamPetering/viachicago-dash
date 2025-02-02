@@ -3,11 +3,11 @@ function onOpen() {
     const ui = SpreadsheetApp.getUi();
     ui.createMenu('Dashboard')
         .addItem('Build', 'build')
-        .addItem('Format', 'formatDashboard')
+        .addItem('Format', 'format')
         .addToUi();
 }
 
-function formatDashboard() {
+function format() {
     const db = new DashBuilder(CONFIG);
     db.clearFormat();
     db.format();
